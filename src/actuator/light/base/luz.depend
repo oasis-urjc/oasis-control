@@ -1,0 +1,42 @@
+# depslib dependency file v1.0
+1643886788 source:/home/alumnos/ivanp/Escritorio/luz/main.cpp
+	<iostream>
+	"luz.h"
+	<unistd.h>
+
+1643887290 /home/alumnos/ivanp/Escritorio/luz/luz.h
+	<ctime>
+
+1643887181 source:/home/alumnos/ivanp/Escritorio/luz/luz.cpp
+	<iostream>
+	"luz.h"
+
+1643893866 source:/home/alumnos/ivanp/Git/Oasis/src/light/main.cpp
+	<iostream>
+	"luz.h"
+	<unistd.h>
+
+1643893234 /home/alumnos/ivanp/Git/Oasis/src/light/luz.h
+	<ctime>
+
+1643893960 source:/home/alumnos/ivanp/Git/Oasis/src/light/luz.cpp
+	<iostream>
+	"luz.h"
+
+1643970414 source:/home/pocho/Git/Oasis/src/light/main.cpp
+	<iostream>
+	"luz.h"
+
+1643970471 /home/pocho/Git/Oasis/src/light/luz.h
+	<ctime>
+
+1643970485 source:/home/pocho/Git/Oasis/src/light/luz.cpp
+	"luz.h"
+
+1644490910 source:/home/alumnos/ivanp/Git/Oasis/src/light/base/main.cpp
+	<iostream>
+	"luz.h"
+
+1644490799 /home/alumnos/ivanp/Git/Oasis/src/light/base/luz.h
+	<ctime>
+
