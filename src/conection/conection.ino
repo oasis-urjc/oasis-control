@@ -1,3 +1,4 @@
+
 #include <Adafruit_SleepyDog.h>
 
 /***********************************************************************
@@ -42,6 +43,160 @@
 #include "Adafruit_MQTT_Client.h"
 #include <ArduinoJson.h>
 
+#include <Thread.h>
+#include <StaticThreadController.h>
+#include <ThreadController.h>
+
+#include "../sensors/dht/main/dht.h"
+#include "../sensors/moisture/main/moisture_sensor.h"
+#include "../sensors/ph/main/Ph.h"
+#include "../sensors/photoresistance/main/Photoresistance.h"
+
+
+//Pins that may be changed
+#define DHT_IN 33
+#define MOIST_IN 32
+#define PH_IN 0
+#define PHR_IN 35
+
+//Types that may be changed
+#define HUM 0
+#define LIGHT 1
+#define TEMP 2
+
+//controller
+ThreadController controller = ThreadController();
+
+//DHT
+class DHT_Thread: public Thread {
+
+public:
+  DHT *dht;
+  const int PLOT_NUM = 1; 
+  const int HEIGHT = 1; 
+  //initialize
+  Led1Thread(int _pin): Thread() {
+   dht = new DHT(PLOT_NUM, HEIGHT, _pin);
+  }
+  //run it periodically
+  bool shouldRun(unsigned long time){
+    return Thread::shouldRun(time);
+  }
+ 
+  void run() {
+    Thread::run();
+    dht->update_value();
+    send_data(phr->get_temp(), TEMP)
+    send_data(phr->get_hum(), HUM)
+  }
+
+  float get_tmp() {
+    return dht->get_temp();
+  }
+
+  float get_hum() {
+    return dht->get_hum();
+  }
+};
+
+DHT_Thread* dht_Thread = new DHT_Thread(DHT_IN);
+
+
+//MOISTURE
+class MOIST_Thread: public Thread {
+
+public:
+  Moisture_sensor *mst;
+  const int PLOT_NUM = 1; 
+  const int HEIGHT = 1; 
+  //initialize
+  Led1Thread(int _pin): Thread() {
+   mst = new Moisture_sensor(PLOT_NUM, HEIGHT, _pin);
+  }
+  //run it periodically
+  bool shouldRun(unsigned long time){
+    return Thread::shouldRun(time);
+  }
+ 
+  void run() {
+    Thread::run();
+    mst->update_value();
+    //NOT TYPE DEFINED
+    //send_data(phr->get_value(), MST)
+  }
+
+  float get_value() {
+    return mst->get_value();
+  }
+
+};
+
+MOIST_Thread* mst_Thread = new MOIST_Thread(MOIST_IN);
+
+
+//PH
+class PH_Thread: public Thread {
+
+public:
+  PH *ph;
+  const int PLOT_NUM = 1; 
+  const int HEIGHT = 1; 
+  //initialize
+  Led1Thread(int _pin): Thread() {
+   ph = new PH(PLOT_NUM, HEIGHT, _pin);
+  }
+  //run it periodically
+  bool shouldRun(unsigned long time){
+    return Thread::shouldRun(time);
+  }
+ 
+  void run() {
+    Thread::run();
+    ph->update_value();
+    //NOT TYPE DEFINED
+    //send_data(phr->get_value(), PH)
+  }
+
+  float get_value() {
+    return ph->get_value();
+  }
+
+};
+
+PH_Thread* ph_Thread = new PH_Thread(PH_IN);
+
+
+//PHR
+class PHR_Thread: public Thread {
+
+public:
+  Photoresistance *phr;
+  const int PLOT_NUM = 1; 
+  const int HEIGHT = 1; 
+  //initialize
+  Led1Thread(int _pin): Thread() {
+   phr = new Photoresistance(PLOT_NUM, HEIGHT, _pin);
+  }
+  //run it periodically
+  bool shouldRun(unsigned long time){
+    return Thread::shouldRun(time);
+  }
+ 
+  void run() {
+    Thread::run();
+    phr->update_value();
+    send_data(phr->get_value(), LIGHT)
+  }
+
+  float get_value() {
+    return phr->get_value();
+  }
+
+};
+
+PHR_Thread* phr_Thread = new PHR_Thread(PH_IN);
+
+
 
 //Variables to connect to WiFi
 const char* ssid = "lo que sea";
@@ -50,10 +205,6 @@ const char* password = "la que sea";
 //Variables to connect to the MQTT server
 const char* server_ip = "0.0.0.0";
 uint16_t server_port = 9999;
-
-//Team data
-const char* team_name = "Oasis";
-const char* team_id = "no creo que usemos esto";
 
 // WiFiFlientfor SSL/TLS support
 WiFiClient client;
@@ -91,7 +242,7 @@ void publish(char *to_pub) {
 
 
 //publishes the action in the MQTT as a JSON
-void send_data(double val, int type ) {
+void send_data(double val, int type) {
   DynamicJsonDocument doc(1024);
 
   doc["value"] = String(val, 4);
@@ -107,6 +258,18 @@ void send_data(double val, int type ) {
 void setup() {
 
   Serial.begin(115200);
+
+  dht_Thread->setInterval(2500);
+  controller.add(dht_Thread);
+
+  mst_Thread->setInterval(2500);
+  controller.add(mst_Thread);
+
+  ph_Thread->setInterval(2500*8);
+  controller.add(mst_Thread);
+
+  phr_Thread->setInterval(2500);
+  controller.add(mst_Thread);
 
   initWiFi();
 }
