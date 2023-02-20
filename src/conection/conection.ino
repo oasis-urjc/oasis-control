@@ -47,10 +47,11 @@
 #include <StaticThreadController.h>
 #include <ThreadController.h>
 
-#include "../sensors/dht/main/dht.h"
-#include "../sensors/moisture/main/moisture_sensor.h"
-#include "../sensors/ph/main/Ph.h"
-#include "../sensors/photoresistance/main/Photoresistance.h"
+#include "include/sensor.h"
+#include "include/dht/dht.h"
+#include "include/moisture/moisture_sensor.h"
+#include "include/ph/Ph.h"
+#include "include/photoresistance/Photoresistance.h"
 
 
 //Pins that may be changed
@@ -67,6 +68,8 @@
 //controller
 ThreadController controller = ThreadController();
 
+void send_data(double val, int type, int node, int plot);
+
 //DHT
 class DHT_Thread: public Thread {
 
@@ -75,7 +78,7 @@ public:
   const int PLOT_NUM = 1; 
   const int HEIGHT = 1; 
   //initialize
-  Led1Thread(int _pin): Thread() {
+  DHT_Thread(int _pin): Thread() {
    dht = new DHT(PLOT_NUM, HEIGHT, _pin);
   }
   //run it periodically
@@ -86,8 +89,8 @@ public:
   void run() {
     Thread::run();
     dht->update_value();
-    send_data(phr->get_temp(), TEMP)
-    send_data(phr->get_hum(), HUM)
+    send_data(dht->get_temp(), TEMP, PLOT_NUM, HEIGHT);
+    send_data(dht->get_hum(), HUM, PLOT_NUM, HEIGHT);
   }
 
   float get_tmp() {
@@ -110,7 +113,7 @@ public:
   const int PLOT_NUM = 1; 
   const int HEIGHT = 1; 
   //initialize
-  Led1Thread(int _pin): Thread() {
+  MOIST_Thread(int _pin): Thread() {
    mst = new Moisture_sensor(PLOT_NUM, HEIGHT, _pin);
   }
   //run it periodically
@@ -142,7 +145,7 @@ public:
   const int PLOT_NUM = 1; 
   const int HEIGHT = 1; 
   //initialize
-  Led1Thread(int _pin): Thread() {
+  PH_Thread(int _pin): Thread() {
    ph = new PH(PLOT_NUM, HEIGHT, _pin);
   }
   //run it periodically
@@ -174,7 +177,7 @@ public:
   const int PLOT_NUM = 1; 
   const int HEIGHT = 1; 
   //initialize
-  Led1Thread(int _pin): Thread() {
+  PHR_Thread(int _pin): Thread() {
    phr = new Photoresistance(PLOT_NUM, HEIGHT, _pin);
   }
   //run it periodically
@@ -185,7 +188,7 @@ public:
   void run() {
     Thread::run();
     phr->update_value();
-    send_data(phr->get_value(), LIGHT)
+    send_data(phr->get_value(), LIGHT, PLOT_NUM, HEIGHT);
   }
 
   float get_value() {
@@ -242,11 +245,13 @@ void publish(char *to_pub) {
 
 
 //publishes the action in the MQTT as a JSON
-void send_data(double val, int type) {
+void send_data(double val, int type, int node, int plot) {
   DynamicJsonDocument doc(1024);
 
   doc["value"] = String(val, 4);
   doc["type"]  = String(type);
+  doc["node"]  = String(node);
+  doc["plot"]  = String(plot);
 
   char json[1024];
   serializeJson(doc, json);
