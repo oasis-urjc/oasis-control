@@ -263,7 +263,7 @@ void send_data(double val, int type, int node, int plot) {
 void setup() {
 
   Serial.begin(115200);
-
+  
   dht_Thread->setInterval(2500);
   controller.add(dht_Thread);
 
@@ -271,11 +271,11 @@ void setup() {
   controller.add(mst_Thread);
 
   ph_Thread->setInterval(2500*8);
-  controller.add(mst_Thread);
+  controller.add(ph_Thread);
 
   phr_Thread->setInterval(2500);
-  controller.add(mst_Thread);
-
+  controller.add(phr_Thread);
+  
   initWiFi();
 }
 
@@ -286,13 +286,7 @@ void loop() {
   // function definition further below.
   MQTT_connect();
 
-  //after connected the sensors start working however they are soupposed to
-  //--> sensors();
-  //probablemente por clases y sean objetos de clase a los que se acceda por getters.
-
-  //with the sensors info we send the data to the MQTT server
-  //--> send_data(sensor.get_value(), sensor.get_type());
-
+  controller.run();
 }
 
 
