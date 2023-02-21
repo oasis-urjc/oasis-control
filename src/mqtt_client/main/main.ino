@@ -145,7 +145,7 @@ WiFiClient client;
 // Setup the MQTT client class by passing in the WiFi client and MQTT server and login details.
 Adafruit_MQTT_Client mqtt(&client, server_ip, server_port);
 
-Adafruit_MQTT_Publish message = Adafruit_MQTT_Publish(&mqtt, "/node1/temp");
+Adafruit_MQTT_Publish message = Adafruit_MQTT_Publish(&mqtt, "node1/temp");
 
 //connect to WiFi
 void initWiFi() {
@@ -178,13 +178,14 @@ void publish(char *to_pub) {
 void send_data(double val, int type, int node, int plot) {
   DynamicJsonDocument doc(1024);
 
-  doc["value"] = String(23.0, 4);
+  doc["value"] = val;
   doc["sensor"]  = String(1);
   
   char json[1024];
   serializeJson(doc, json);
 
   publish(json);
+  Serial.println("SEND");
 }
 
 
@@ -202,6 +203,8 @@ void setup() {
   controller.add(phr_Thread);
   
   initWiFi();
+
+  Serial.println("COMENZANDO");
 }
 
 
