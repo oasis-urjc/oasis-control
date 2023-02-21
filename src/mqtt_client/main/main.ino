@@ -23,9 +23,9 @@
 #define PHR_IN 35
 
 //Types that may be changed
-#define HUM 0
-#define LIGHT 1
-#define TEMP 2
+#define HUM 1
+#define LIGHT 2
+#define TEMP 3
 
 //controller
 ThreadController controller = ThreadController();
