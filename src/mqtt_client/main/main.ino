@@ -132,12 +132,12 @@ PHR_Thread* phr_Thread = new PHR_Thread(PH_IN);
 
 
 //Variables to connect to WiFi
-const char* ssid = "lo que sea";
-const char* password = "la que sea";
+const char* ssid = "Livebox6-6677";
+const char* password = "74RZdskS3Ft9";
 
 //Variables to connect to the MQTT server
-const char* server_ip = "0.0.0.0";
-uint16_t server_port = 9999;
+const char* server_ip = "192.168.1.32";
+uint16_t server_port = 1883;
 
 // WiFiFlientfor SSL/TLS support
 WiFiClient client;
@@ -145,7 +145,7 @@ WiFiClient client;
 // Setup the MQTT client class by passing in the WiFi client and MQTT server and login details.
 Adafruit_MQTT_Client mqtt(&client, server_ip, server_port);
 
-Adafruit_MQTT_Publish message = Adafruit_MQTT_Publish(&mqtt, "/SETR/2022/10/");
+Adafruit_MQTT_Publish message = Adafruit_MQTT_Publish(&mqtt, "/node1/temp");
 
 //connect to WiFi
 void initWiFi() {
@@ -178,11 +178,9 @@ void publish(char *to_pub) {
 void send_data(double val, int type, int node, int plot) {
   DynamicJsonDocument doc(1024);
 
-  doc["value"] = String(val, 4);
-  doc["type"]  = String(type);
-  doc["node"]  = String(node);
-  doc["plot"]  = String(plot);
-
+  doc["value"] = String(23.0, 4);
+  doc["sensor"]  = String(1);
+  
   char json[1024];
   serializeJson(doc, json);
 
