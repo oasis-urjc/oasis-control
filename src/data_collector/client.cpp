@@ -15,12 +15,14 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
+#include "string.h"
+
 // Create a new task record
-void addTask(std::unique_ptr<sql::Connection> &conn, int sensor, int value) {
+void addTask(std::unique_ptr<sql::Connection> &conn, double value, int sensor) {
     try {
         // Create a new PreparedStatement
         std::unique_ptr<sql::PreparedStatement> stmnt(conn->prepareStatement("insert into SensorsMeasurements (value_, sensor) values (?, ?)"));        // Bind values to SQL statement
-        stmnt->setInt(1, value);
+        stmnt->setDouble(1, value);
         stmnt->setInt(2, sensor);
         // Execute query
         stmnt->executeQuery();
@@ -32,10 +34,10 @@ void addTask(std::unique_ptr<sql::Connection> &conn, int sensor, int value) {
    }
 }
 
-void make_query(std::unique_ptr<sql::Connection> &conn, MQTT_NS::buffer contents) 
+void make_query(std::unique_ptr<sql::Connection> &conn, std::string contents) 
 {
     // 1. Parse a JSON string into DOM.
-    const char* json = contents.data();
+    const char* json = contents.c_str();
     std::cout << "Extracting data from: " << json << std::endl;
     rapidjson::Document d;
     d.Parse(json);
@@ -44,10 +46,13 @@ void make_query(std::unique_ptr<sql::Connection> &conn, MQTT_NS::buffer contents
     rapidjson::Value& sensorv = d["sensor"];
     rapidjson::Value& valuev = d["value"];
 
-    int sensor = sensorv.GetInt();
-    int value = valuev.GetInt();
+    std::string sensor = sensorv.GetString();
+    std::string value = valuev.GetString();
 
-    addTask(conn, sensor, value);
+    int sensor_int = std::stoi(sensor);
+    double value_double = std::atof(value.c_str());
+
+    addTask(conn, value_double, sensor_int);
 }
 
 int main(int argc, char** argv) 
@@ -61,7 +66,6 @@ int main(int argc, char** argv)
     MQTT_NS::setup_log();
 
     boost::asio::io_context ioc;
-    std::uint16_t pid_sub1;
     std::uint16_t pid_sub2;
 
     int count = 0;
@@ -91,18 +95,19 @@ int main(int argc, char** argv)
 
     // Setup handlers
     c->set_connack_handler(
-        [&c, &pid_sub1, &pid_sub2]
+        [&c, &pid_sub2]
         (bool sp, MQTT_NS::connect_return_code connack_return_code){
             std::cout << "Connection with the server stablished" << std::endl;
             
             if (connack_return_code == MQTT_NS::connect_return_code::accepted) 
             {
-                pid_sub1 = c->subscribe("mqtt_client_cpp/topic1", MQTT_NS::qos::at_most_once);
                 pid_sub2 = c->subscribe(
                     std::vector<std::tuple<MQTT_NS::string_view, MQTT_NS::subscribe_options>>
                     {
-                        { "node1/temp", MQTT_NS::qos::at_least_once },
-                        { "node1/hum", MQTT_NS::qos::exactly_once }
+                        { "node1/temp", MQTT_NS::qos::exactly_once },
+                        { "node1/hum", MQTT_NS::qos::exactly_once },
+                        { "node1/ph", MQTT_NS::qos::exactly_once },
+                        { "node1/phr", MQTT_NS::qos::exactly_once }
                     }
                 );
             }
@@ -130,8 +135,23 @@ int main(int argc, char** argv)
          MQTT_NS::publish_options pubopts,
          MQTT_NS::buffer topic_name,
          MQTT_NS::buffer contents){
+            
+            std::string str = contents.data();
 
-            make_query(conn, contents);
+            std::cout << "sub: " << str.substr(str.length() - 4) << std::endl;
+
+            if (str.substr(str.length() - 4) == "\"}\"}"){
+                // The string ends with "}"
+                str.erase(str.length() - 2); // Remove the last two characters
+                std::cout << "corrected: " << str << std::endl;
+            }
+            else if (str.substr(str.length() - 2) == "}}"){
+                // The string ends with "}"
+                str.erase(str.length() - 1); // Remove the last two characters
+                std::cout << "corrected: " << str << std::endl;
+            }
+
+            make_query(conn, str);
             return true;
         }
     );
