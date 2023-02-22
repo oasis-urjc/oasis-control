@@ -23,6 +23,6 @@ void loop()
   Serial.print( "CONT : ");
   Serial.println(ph.get_cont());
 
-  delay(200 * 40); // 200ms 40 measurements
+  delay(200 * 40); // 200ms 40 measurements = 8000
 
 }
