@@ -1,4 +1,3 @@
-
 #include <Adafruit_SleepyDog.h>
 
 #include <WiFi.h>
@@ -6,130 +5,11 @@
 #include "Adafruit_MQTT_Client.h"
 #include <ArduinoJson.h>
 
-#include <Thread.h>
-#include <StaticThreadController.h>
-#include <ThreadController.h>
-
-#include "sensor.h"
-#include "dht.h"
-#include "Ph.h"
-#include "Photoresistance.h"
-
-
-//Pins that may be changed
-#define DHT_IN 33
-#define MOIST_IN 32
-#define PH_IN 0
-#define PHR_IN 35
-
 //Types that may be changed
 #define HUM 1
 #define LIGHT 2
 #define TEMP 3
-
-//controller
-ThreadController controller = ThreadController();
-
-void send_data(double val, int type, int node, int plot);
-
-//DHT
-class DHT_Thread: public Thread {
-
-public:
-  DHT *dht;
-  const int PLOT_NUM = 1; 
-  const int HEIGHT = 1; 
-  //initialize
-  DHT_Thread(int _pin): Thread() {
-   dht = new DHT(PLOT_NUM, HEIGHT, _pin);
-  }
-  //run it periodically
-  bool shouldRun(unsigned long time){
-    return Thread::shouldRun(time);
-  }
- 
-  void run() {
-    Thread::run();
-    dht->update_value();
-    send_data(dht->get_temp(), TEMP, PLOT_NUM, HEIGHT);
-    send_data(dht->get_hum(), HUM, PLOT_NUM, HEIGHT);
-  }
-
-  float get_tmp() {
-    return dht->get_temp();
-  }
-
-  float get_hum() {
-    return dht->get_hum();
-  }
-};
-
-DHT_Thread* dht_Thread = new DHT_Thread(DHT_IN);
-
-
-//PH
-class PH_Thread: public Thread {
-
-public:
-  PH *ph;
-  const int PLOT_NUM = 1; 
-  const int HEIGHT = 1; 
-  //initialize
-  PH_Thread(int _pin): Thread() {
-   ph = new PH(PLOT_NUM, HEIGHT, _pin);
-  }
-  //run it periodically
-  bool shouldRun(unsigned long time){
-    return Thread::shouldRun(time);
-  }
- 
-  void run() {
-    Thread::run();
-    ph->update_value();
-    //NOT TYPE DEFINED
-    //send_data(phr->get_value(), PH)
-  }
-
-  float get_value() {
-    return ph->get_value();
-  }
-
-};
-
-PH_Thread* ph_Thread = new PH_Thread(PH_IN);
-
-
-//PHR
-class PHR_Thread: public Thread {
-
-public:
-  Photoresistance *phr;
-  const int PLOT_NUM = 1; 
-  const int HEIGHT = 1; 
-  //initialize
-  PHR_Thread(int _pin): Thread() {
-   phr = new Photoresistance(PLOT_NUM, HEIGHT, _pin);
-  }
-  //run it periodically
-  bool shouldRun(unsigned long time){
-    return Thread::shouldRun(time);
-  }
- 
-  void run() {
-    Thread::run();
-    phr->update_value();
-    send_data(phr->get_value(), LIGHT, PLOT_NUM, HEIGHT);
-  }
-
-  float get_value() {
-    return phr->get_value();
-  }
-
-};
-
-PHR_Thread* phr_Thread = new PHR_Thread(PH_IN);
-
-
+#define PH 4
 
 //Variables to connect to WiFi
 const char* ssid = "Livebox6-6677";
@@ -145,7 +25,10 @@ WiFiClient client;
 // Setup the MQTT client class by passing in the WiFi client and MQTT server and login details.
 Adafruit_MQTT_Client mqtt(&client, server_ip, server_port);
 
-Adafruit_MQTT_Publish message = Adafruit_MQTT_Publish(&mqtt, "node1/temp");
+Adafruit_MQTT_Publish temp = Adafruit_MQTT_Publish(&mqtt, "node1/temp");
+Adafruit_MQTT_Publish hum = Adafruit_MQTT_Publish(&mqtt, "node1/hum");
+Adafruit_MQTT_Publish ph = Adafruit_MQTT_Publish(&mqtt, "node1/ph");
+Adafruit_MQTT_Publish phr = Adafruit_MQTT_Publish(&mqtt, "node1/phr");
 
 //connect to WiFi
 void initWiFi() {
@@ -164,9 +47,9 @@ void initWiFi() {
   Serial.println(WiFi.RSSI());
 }
 
-void publish(char *to_pub) {
+void publish(char *to_pub, Adafruit_MQTT_Publish* topic) {
 
-  if (! message.publish(to_pub)) {
+  if (! topic->publish(to_pub)) {
     Serial.println(F("Failed"));
   } else {
     Serial.println(F("OK!"));
@@ -175,16 +58,18 @@ void publish(char *to_pub) {
 
 
 //publishes the action in the MQTT as a JSON
-void send_data(double val, int type, int node, int plot) {
+void send_data(double val, int sensor, Adafruit_MQTT_Publish* topic) {
   DynamicJsonDocument doc(1024);
 
-  doc["value"] = val;
-  doc["sensor"]  = String(1);
+  doc["value"] = String(val, 4);
+  doc["sensor"]  = String(sensor);
   
   char json[1024];
   serializeJson(doc, json);
 
-  publish(json);
+  Serial.println(String(json));
+
+  publish(json, topic);
   Serial.println("SEND");
 }
 
@@ -193,20 +78,12 @@ void setup() {
 
   Serial.begin(115200);
   
-  dht_Thread->setInterval(2500);
-  controller.add(dht_Thread);
-
-  ph_Thread->setInterval(2500*8);
-  controller.add(ph_Thread);
-
-  phr_Thread->setInterval(2500);
-  controller.add(phr_Thread);
-  
   initWiFi();
 
   Serial.println("COMENZANDO");
 }
 
+double i = -20.0;
 
 void loop() {
   // Ensure the connection to the MQTT server is alive (this will make the first
@@ -214,7 +91,16 @@ void loop() {
   // function definition further below.
   MQTT_connect();
 
-  controller.run();
+  i++;
+
+  send_data(i, HUM, &hum);
+  delay(1000);
+  send_data(i, LIGHT, &phr);
+  delay(1000);
+  send_data(i, TEMP, &temp);
+  delay(1000);
+  send_data(i, PH, &ph);
+  delay(1000);
 }
 
 
@@ -231,16 +117,17 @@ void MQTT_connect() {
   Serial.print("Connecting to MQTT... ");
 
   uint8_t retries = 3;
-  while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
-       Serial.println(mqtt.connectErrorString(ret));
-       Serial.println("Retrying MQTT connection in 5 seconds...");
-       mqtt.disconnect();
-       delay(5000);  // wait 5 seconds
-       retries--;
-       if (retries == 0) {
-         // basically die and wait for WDT to reset me
-         while (1);
-       }
+  while ((ret = mqtt.connect()) != 0) 
+  { // connect will return 0 for connected
+    Serial.println(mqtt.connectErrorString(ret));
+    Serial.println("Retrying MQTT connection in 5 seconds...");
+    mqtt.disconnect();
+    delay(5000);  // wait 5 seconds
+    retries--;
+    if (retries == 0) {
+      // basically die and wait for WDT to reset me
+      while (1);
+    }
   }
 
   Serial.println("MQTT Connected!");
